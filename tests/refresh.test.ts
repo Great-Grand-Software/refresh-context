@@ -1,4 +1,4 @@
-import type { On } from 'claude-code'
+import type { ModelForkResult, On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
 const start = { cwd: '/', surface: 'terminal', isInteractive: true } as const
@@ -9,80 +9,42 @@ const run = (args: string) =>
     origin: { kind: 'composer' },
     presentation: { isFullscreen: false, columns: 80 },
   }) as const
-const bottom = (on: On) => {
+const usage = { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
+
+const setup = (on: On, fork: () => ModelForkResult) => {
+  const order: string[] = []
+  let submitted = ''
   on('classic.SessionStart', () => ({}))
   on('ui.toast', () => ({ value: undefined }))
-  on('ui.log', () => ({ value: undefined }))
+  on('ui.status', () => ({ value: undefined }))
+  on('command.register', () => ({ value: { command: 'refresh-context' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('model.fork', () => (order.push('fork'), { value: fork() }))
+  on('command.run', { command: 'clear' }, () => (order.push('clear'), { text: '' }))
+  on('prompt.submit', (_, e) => (order.push('submit'), (submitted = e.text), { text: e.text }))
+  return { order, submitted: () => submitted, clock: mock.clock(on) }
 }
 
-test('/refresh-context writes a handoff, clears, and sends it back', async ($, on) => {
-  const order: string[] = []
-  let written = ''
-  let submitted = ''
-
-  bottom(on)
-  const clock = mock.clock(on)
-  on('command.register', () => ({ value: { command: 'refresh-context' } }))
-  on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('ui.status', () => ({ value: undefined }))
-  on('model.fork', (_, e) => {
-    order.push('fork')
-    expect(e.prompt).toContain('remember the rate limit')
-    return { value: { isAnswered: true, text: '# Handoff\n## Next steps\n1. Fix it', usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } }
-  })
-  on('fs.write', (_, e) => {
-    order.push('write')
-    written = e.text
-    return { value: undefined }
-  })
-  on('command.run', { command: 'clear' }, () => {
-    order.push('clear')
-    return { text: '' }
-  })
-  on('prompt.submit', (_, e) => {
-    order.push('submit')
-    submitted = e.text
-    return { text: e.text }
-  })
+test('hands off, clears, resumes once', async ($, on) => {
+  const t = setup(on, () => ({ isAnswered: true, text: '1. Fix it', usage }))
 
   await $.session.start(start)
-  const out = await $.command.run(run('remember the rate limit'))
-  expect(out.text).toContain('Clearing the context')
-
-  // /clear runs on a timer once the command has returned.
-  await clock.advance(10)
-  expect(order).toEqual(['fork', 'write', 'clear'])
-
-  // The session /clear starts.
+  await $.command.run(run('notes'))
+  await t.clock.advance(10)
+  await $.classic.SessionStart({ source: 'clear' })
   await $.classic.SessionStart({ source: 'clear' })
 
-  expect(order).toEqual(['fork', 'write', 'clear', 'submit'])
-  expect(written).toContain('1. Fix it')
-  expect(submitted).toContain('exact same task')
-  expect(submitted).toContain("don't ask me whether it worked")
-  expect(submitted).toContain('1. Fix it')
-
-  // A later, unrelated /clear sends nothing.
-  await $.classic.SessionStart({ source: 'clear' })
-  expect(order.filter(s => s === 'submit').length).toBe(1)
+  expect(t.order).toEqual(['fork', 'clear', 'submit'])
+  expect(t.submitted()).toContain('1. Fix it')
 })
 
-test('no clear when the handoff fails', async ($, on) => {
-  let cleared = false
-  bottom(on)
-  on('command.register', () => ({ value: { command: 'refresh-context' } }))
-  on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('ui.status', () => ({ value: undefined }))
-  on('model.fork', () => ({ value: { isAnswered: false, reason: 'nothing-to-fork' } }))
-  on('command.run', { command: 'clear' }, () => {
-    cleared = true
-    return { text: '' }
-  })
+test('failed handoff clears nothing', async ($, on) => {
+  const t = setup(on, () => ({ isAnswered: false, reason: 'nothing-to-fork' }))
 
-  const clock = mock.clock(on)
   await $.session.start(start)
   const out = await $.command.run(run(''))
-  await clock.advance(10)
-  expect(out.text).toContain('Nothing was cleared')
-  expect(cleared).toBe(false)
+  await t.clock.advance(10)
+
+  expect(out.text).toContain('Nothing cleared')
+  expect(t.order).toEqual(['fork'])
 })

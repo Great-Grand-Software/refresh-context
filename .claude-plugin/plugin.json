@@ -1,5 +1,5 @@
 {
   "name": "refresh-context",
-  "version": "0.1.0",
-  "description": "/refresh-context: the agent writes a handoff, the context is cleared, and the handoff is sent back so the same task continues with a fresh context"
+  "version": "0.2.0",
+  "description": "Fresh context, same task"
 }
