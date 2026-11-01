@@ -1,10 +1,16 @@
 # refresh-context
 
-`/refresh-context`: fresh context, same task.
+Clear Claude Code's context without losing your place.
 
-1. Agent writes a handoff.
-2. `/clear` runs.
-3. Agent resumes from the handoff.
+```
+/refresh-context
+```
+
+1. **First:** Claude writes a handoff for its current task.
+2. **Next:** the context clears.
+3. **Finally:** Claude reads the handoff and keeps working.
+
+That's it.
 
 Optional notes: `/refresh-context remember the rate limit`
 
@@ -14,9 +20,8 @@ Optional notes: `/refresh-context remember the rate limit`
 claude plugin install refresh-context --marketplace Great-Grand-Software/refresh-context
 ```
 
-## Develop
+## Test
 
 ```
 claude plugin test .
-claude --plugin-dir .
 ```
