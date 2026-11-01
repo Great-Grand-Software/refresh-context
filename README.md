@@ -1,66 +1,56 @@
 # refresh-context
 
-A `/refresh-context` command for Claude Code. It swaps a long, cluttered context for a fresh one without losing track of the task you're working on.
+One command, `/refresh-context`, that gives a Claude Code agent a fresh context without losing its place. Type it and wait. That's all.
 
-## How to use it
+## What happens when you type `/refresh-context`
 
-In a Claude Code session, type these three things:
+1. The agent is asked, with its full current context, to write a detailed handoff for the task it is working on: the goal, your constraints, what's done, the exact step it was on, next steps, decisions, dead ends, and how to verify. It is told it will continue the exact same task afterwards.
+2. The handoff is also saved to `.refresh-context/handoff.md` in your project, as a backup.
+3. `/clear` runs automatically.
+4. The handoff is sent to the fresh agent automatically, as your message, telling it to continue the same task from the next steps.
 
-1. `/refresh-context`. Claude writes a detailed handoff for the current task to `.refresh-context/handoff.md` and does nothing else. You can add notes for the handoff after the command, e.g. `/refresh-context remember the API is rate limited`.
-2. `/clear`. This wipes the context. A `SessionStart` hook on `clear` reads the handoff and adds it to the new, empty context.
-3. `continue` (or anything else). The fresh Claude picks the task back up from the handoff.
+You can add notes for the handoff: `/refresh-context remember the API is rate limited`.
 
-## Why it takes three steps and not one
+If the handoff can't be written, nothing is cleared and the command says why.
 
-A slash command is a prompt for Claude. Claude can't run built-in commands like `/clear`, and Claude Code doesn't let a command or hook run `/clear` or start a turn on its own. So the parts that only you can trigger, clearing and sending the next message, are left to you. Everything else is automatic.
+## Install
 
-## What's in the repo
+At the prompt of a Claude Code terminal session:
+
+```
+/plugin install refresh-context --marketplace Great-Grand-Software/refresh-context
+```
+
+Answer `y` to add the marketplace, then pick a scope (user scope makes it work in every project). Restart Claude Code afterwards.
+
+From a shell instead:
+
+```
+claude plugin install refresh-context --marketplace Great-Grand-Software/refresh-context
+```
+
+If this repository is private, your computer needs GitHub access to it (for example `gh auth login`) for the install to work.
+
+## Why this is a plugin and not a plain slash command
+
+A plain slash command (a markdown file in `.claude/commands/`) is only a prompt for the agent, and the agent can't run `/clear`. This plugin uses Claude Code's plugin hooks API, which can ask the agent a question over its current context (`$.model.fork`), run `/clear` (`$.command.run`), and send a message as you (`$.prompt.submit`). That is what lets all four steps happen from one command.
+
+The plugin hooks API is marked early access, so it needs a recent Claude Code. This was built and tested against Claude Code 2.1.316.
+
+## Files
 
 | File | What it does |
 | :- | :- |
-| `.claude/commands/refresh-context.md` | The `/refresh-context` command: tells Claude what to put in the handoff and where to save it |
-| `.claude/hooks/load-handoff.sh` | Runs after `/clear`, prints the handoff into the new context, and moves it to `.refresh-context/archive/` so it's used only once. It ignores a handoff more than 60 minutes old |
-| `.claude/settings.json` | Registers the hook on `SessionStart` with matcher `clear` |
-| `.gitignore` | Keeps `.refresh-context/` out of git |
+| `hooks/register.ts` | The plugin: registers `/refresh-context`, writes the handoff, runs `/clear`, and sends the handoff to the fresh session |
+| `hooks/hooks.json` | Points Claude Code at `register.ts` |
+| `.claude-plugin/plugin.json` | The plugin's name and description |
+| `.claude-plugin/marketplace.json` | Makes this repository installable with `/plugin install` |
+| `tests/refresh.test.ts` | Tests, run with `claude plugin test .` |
 
-## Using it in other projects
+## Developing
 
-**One project:** copy `.claude/commands/refresh-context.md`, `.claude/hooks/load-handoff.sh` and the `hooks` block from `.claude/settings.json` into that project, and add `.refresh-context/` to its `.gitignore`.
-
-**Every project:** put the files in your user config instead:
-
-```bash
-mkdir -p ~/.claude/commands ~/.claude/hooks
-cp .claude/commands/refresh-context.md ~/.claude/commands/
-cp .claude/hooks/load-handoff.sh ~/.claude/hooks/
-chmod +x ~/.claude/hooks/load-handoff.sh
 ```
-
-Then add this to `~/.claude/settings.json`, merging it with any `hooks` you already have:
-
-```json
-{
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "clear",
-        "hooks": [
-          { "type": "command", "command": "~/.claude/hooks/load-handoff.sh" }
-        ]
-      }
-    ]
-  }
-}
+claude plugin validate .
+claude plugin test .
+claude --plugin-dir .    # try it in a session without installing
 ```
-
-The handoff is still saved in each project's own `.refresh-context/` folder, so add that folder to your global gitignore (`git config --global core.excludesFile`).
-
-## Requirements
-
-- Claude Code, started in the project folder (or with the files installed globally as above)
-- bash, for the hook script (macOS, Linux, or WSL/Git Bash on Windows)
-- Restart Claude Code after adding the hook so it gets picked up. Run `/hooks` to check that it's listed
-
-## Related: `/compact`
-
-Claude Code's built-in `/compact` does something similar: it summarizes the conversation and keeps going in the same session, and you can steer it, e.g. `/compact focus on the remaining test failures`. `/refresh-context` gives you a cleaner reset. The new context holds only a handoff that Claude wrote on purpose, and you can open the file and edit it before you `/clear`.

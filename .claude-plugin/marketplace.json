@@ -1,0 +1,13 @@
+{
+  "name": "great-grand-software",
+  "owner": {
+    "name": "Great Grand Software"
+  },
+  "description": "The refresh-context plugin for Claude Code",
+  "plugins": [
+    {
+      "name": "refresh-context",
+      "source": "./"
+    }
+  ]
+}
