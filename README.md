@@ -10,8 +10,6 @@ Clear Claude Code's context without losing your place.
 2. **Next:** the context clears.
 3. **Finally:** Claude reads the handoff and keeps working.
 
-That's it.
-
 Optional notes: `/refresh-context remember the rate limit`
 
 ## Install
