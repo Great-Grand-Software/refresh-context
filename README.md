@@ -7,7 +7,7 @@ One command, `/refresh-context`, that gives a Claude Code agent a fresh context 
 1. The agent is asked, with its full current context, to write a detailed handoff for the task it is working on: the goal, your constraints, what's done, the exact step it was on, next steps, decisions, dead ends, and how to verify. It is told it will continue the exact same task afterwards.
 2. The handoff is also saved to `.refresh-context/handoff.md` in your project, as a backup.
 3. `/clear` runs automatically.
-4. The handoff is sent to the fresh agent automatically, as your message, telling it to continue the same task from the next steps.
+4. The handoff is sent to the fresh agent automatically, as your message. The agent says "Context refreshed." and carries on with the next step, without commenting on the refresh or asking whether it worked.
 
 You can add notes for the handoff: `/refresh-context remember the API is rate limited`.
 

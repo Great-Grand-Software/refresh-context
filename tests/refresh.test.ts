@@ -59,6 +59,7 @@ test('/refresh-context writes a handoff, clears, and sends it back', async ($, o
   expect(order).toEqual(['fork', 'write', 'clear', 'submit'])
   expect(written).toContain('1. Fix it')
   expect(submitted).toContain('exact same task')
+  expect(submitted).toContain("don't ask me whether it worked")
   expect(submitted).toContain('1. Fix it')
 
   // A later, unrelated /clear sends nothing.

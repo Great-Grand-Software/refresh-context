@@ -5,6 +5,8 @@ const BACKUP = '.refresh-context/handoff.md'
 
 const handoffPrompt = (notes: string) => `Your context is about to be cleared. A fresh copy of you, with no memory of this conversation, will continue this exact task from a handoff that you write now. Do not call any tools: reply with the handoff as markdown and nothing else.
 
+Write only about the task itself. Leave out this refresh, the handoff and the clear: no steps like "confirm the refresh worked" or "tell the user the context was cleared".
+
 Be specific: exact file paths, function names, commands, error messages and line numbers, not summaries of them. Use these sections, leaving out any that would be empty:
 
 # Handoff
@@ -28,7 +30,9 @@ Commands to build, test or check the work, and what passing looks like.
 Anything still waiting on the user.
 ${notes.trim() ? `\nThe user added these notes for the handoff: ${notes.trim()}\n` : ''}`
 
-const resumePrompt = (handoff: string) => `My context was just cleared with /refresh-context so you can keep going with a fresh one. You are continuing the exact same task as before. Here is the handoff you wrote just before the clear. Pick up from its next steps and keep working as if nothing had changed.
+const resumePrompt = (handoff: string) => `Context refreshed. Below is the handoff for the exact same task you were already doing. Carry on from its next steps as if nothing had happened.
+
+Start your reply with just "Context refreshed." and then get straight back to work. Don't say anything else about the refresh, the handoff or the clear, and don't ask me whether it worked. If the next step is waiting on me, say you're ready and stop.
 
 ${handoff}`
 
